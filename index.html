@@ -4,16 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Secure Employee Portal</title>
-    <!-- Include Supabase and PDF-lib libraries automatically -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://jsdelivr.net"></script>
+    <!-- Core External Libraries Built-in -->
+    <script src="https://jsdelivr.net"></script>
+    <script src="https://jsdelivr.net"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; padding: 20px; display: flex; justify-content: center; margin: 0; }
         .container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%; max-width: 650px; margin-top: 20px; box-sizing: border-box; }
         h2 { color: #2c3e50; margin-bottom: 5px; font-size: 24px; }
         p { color: #7f8c8d; font-size: 14px; margin-bottom: 25px; }
         .form-group { margin-bottom: 18px; }
-        .form-group.full { width: 100%; }
         .form-row { display: flex; gap: 15px; flex-wrap: wrap; }
         .form-row .form-group { flex: 1; min-width: 140px; }
         label { display: block; margin-bottom: 6px; font-weight: 600; color: #34495e; font-size: 14px; }
@@ -49,7 +48,6 @@
         <div id="status-msg" class="message hidden"></div>
         
         <form id="pdf-form" onsubmit="submitForm(event)">
-            
             <div class="section-title">Personal Identification</div>
             <div class="form-group">
                 <label>Employee Name</label>
@@ -131,8 +129,8 @@
 </div>
 
 <script>
-    // System Configurations
-    const SUPABASE_URL       = 'https://dcbhmqxcpclrsabdqond.supabase.co'; 
+    // System Configurations (Pre-filled with your authentic project data)
+    const SUPABASE_URL       = 'https://supabase.co'; 
     const SUPABASE_ANON_KEY   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRjYmhtcXhjcGNscnNhYmRxb25kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1ODc2ODEsImV4cCI6MjEwOTE2MzY4MX0.hxttL0vHclPgD8SwRN2zdMImKiBMnHXcwULROeRJqg8';
     const BLANK_PDF_URL       = './template.pdf';   
     const BUCKET_NAME         = 'pdfs';             
@@ -140,21 +138,18 @@
     // Initialize Supabase Connection
     const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // Auto-detect authentication from Magic Link redirect
+    // Auto-detect authentication session
     window.onload = async () => {
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             showFormScreen();
         }
     };
 
-    // Helper: auto format SSN visually for security and structure
+    // Helper: auto format SSN values visually
     function formatSSN(input) {
         let val = input.value.replace(/\D/g, '');
         let newVal = '';
-        if (val.length > 4) {
-            this.value = val;
-        }
         if (val.length > 3 && val.length < 6) {
             newVal += val.substr(0, 3) + '-';
             val = val.substr(3);
@@ -167,7 +162,7 @@
         input.value = newVal.substr(0, 11);
     }
 
-    // Auth Action: Request link delivery
+    // Auth Action: Request magic link delivery
     async function sendMagicLink() {
         const email = document.getElementById('employee-email').value.trim();
         const loginBtn = document.getElementById('login-btn');
@@ -196,16 +191,16 @@
     function showFormScreen() {
         document.getElementById('login-screen').classList.add('hidden');
         document.getElementById('form-screen').classList.remove('hidden');
-        // Auto fill today's date into the execution view
         document.getElementById('field-Date').valueAsDate = new Date();
     }
 
     // Processing & Compiling Actions
     async function submitForm(event) {
-event.preventDefault();
-const submitBtn = document.getElementById('submit-btn');
-submitBtn.disabled = true;
-submitBtn.textContent = "Encrypting & Injecting Data...";
+        event.preventDefault();
+        const submitBtn = document.getElementById('submit-btn');
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Encrypting & Injecting Data...";
+
 try {
 const { data: { user } } = await supabase.auth.getUser();
 if (!user) throw new Error("User session expired. Please re-authenticate.");
@@ -216,7 +211,7 @@ return res.arrayBuffer();
 });
 const pdfDoc = await PDFLib.PDFDocument.load(pdfBytes);
 const form = pdfDoc.getForm();
-// 2. Map & Inject Form Elements
+// 2. Map Form Elements
 const fieldsToFill = {
 'Name': document.getElementById('field-Name').value,
 'Adress': document.getElementById('field-Adress').value,
@@ -238,16 +233,15 @@ const fieldsToFill = {
 '9': document.getElementById('field-9').value,
 '10': document.getElementById('field-10').value
 };
-// Programmatically assign strings into specific form boxes
 for (const [key, val] of Object.entries(fieldsToFill)) {
 try {
 const textField = form.getTextField(key);
 textField.setText(val || '');
 } catch(e) {
-console.warn(Field ID '${key}' not targeted or missing configuration in Foxit structural layers.);
+console.warn(Field ID '${key}' missing configuration inside Foxit.);
 }
 }
-// 3. Process image buffer layer conversion for signatures
+// 3. Process signature image layer
 const sigFileInput = document.getElementById('field-Signature');
 if (sigFileInput.files.length > 0) {
 const sigFile = sigFileInput.files[0];
@@ -262,16 +256,13 @@ try {
 const sigFieldButton = form.getButton('Signature');
 sigFieldButton.setImage(sigImage);
 } catch(e) {
-// Fallback to signature field processing structure if not explicitly defined as button asset
-console.error("Signature target asset requires a form layout image button structural configuration inside Foxit.", e);
-throw new Error("Could not find an interactive signature button box labeled 'Signature' in your PDF layer.");
+throw new Error("Could not locate interactive signature image box labeled 'Signature' inside PDF form layout layers.");
 }
 }
-// Lock document down permanently
 form.flatten();
 const finalPdfBytes = await pdfDoc.save();
 const pdfBlob = new Blob([finalPdfBytes], { type: 'application/pdf' });
-// 4. Transport payload streams directly into private encrypted cloud partition
+// 4. Secure Private Cloud Upload
 const timestamp = Date.now();
 const cleanEmail = user.email.replace(/[^a-zA-Z0-9]/g, "_");
 const fileName = submission_${cleanEmail}_${timestamp}.pdf;
@@ -279,18 +270,15 @@ const { data, error: uploadError } = await supabase.storage
 .from(BUCKET_NAME)
 .upload(fileName, pdfBlob, { contentType: 'application/pdf', cacheControl: '3600', upsert: false });
 if (uploadError) throw uploadError;
-// 5. Commit record entries for system logging indexing tracking
+// 5. Database logging indexing entry
 const { error: dbError } = await supabase
 .from('form_submissions')
-.insert([
-{ employee_email: user.email, pdf_url: fileName, status: 'completed' }
-]);
+.insert([{ employee_email: user.email, pdf_url: fileName, status: 'completed' }]);
 if (dbError) throw dbError;
-// Final View update
 document.getElementById('pdf-form').classList.add('hidden');
 const statusMsg = document.getElementById('status-msg');
 statusMsg.innerHTML = "Submission Complete!
-Your information and signature fields have been compiled and secured inside our isolated encryption storage safely.";
+Your information and signature fields have been securely compiled and locked inside our encrypted cloud partition.";
 statusMsg.classList.remove('hidden');
 } catch (err) {
 alert("Submission halted: " + err.message);
