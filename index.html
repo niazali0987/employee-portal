@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Employee Portal</title>
 <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
 <style>
   :root {
     --blue:#2457c5; --blue-dark:#1b44a0; --bg1:#eef2fb; --bg2:#dfe8fa;
@@ -14,37 +14,38 @@
   * { box-sizing: border-box; }
   body {
     font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-    color: var(--text); margin: 0; padding: 32px 14px; min-height: 100vh;
+    color: var(--text); margin: 0; padding: 24px 14px; min-height: 100vh;
     background: linear-gradient(135deg, var(--bg1), var(--bg2));
   }
   .card {
-    max-width: 440px; margin: 40px auto; background: #fff; border-radius: 16px;
+    max-width: 460px; margin: 40px auto; background: #fff; border-radius: 16px;
     padding: 32px; box-shadow: 0 10px 30px rgba(30,50,100,.12);
   }
   .card.wide { max-width: 760px; margin-top: 0; }
   h1 { margin: 0 0 6px; font-size: 24px; }
   h2 { font-size: 16px; margin: 28px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
   p.sub { margin: 0 0 22px; color: var(--muted); font-size: 14px; line-height: 1.5; }
+  .field { margin-bottom: 16px; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   .full { grid-column: 1 / -1; }
   label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; }
   input {
-    width: 100%; padding: 11px 12px; border: 1px solid var(--border); border-radius: 8px;
-    font-size: 15px; background: #fbfcff;
+    width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 16px; background: #fbfcff;
   }
   input:focus { outline: 2px solid var(--blue); border-color: var(--blue); background: #fff; }
-  #otpCode { letter-spacing: 8px; font-size: 22px; text-align: center; }
+  #otpCode { letter-spacing: 10px; font-size: 24px; text-align: center; }
   button {
-    width: 100%; margin-top: 16px; padding: 13px; background: var(--blue); color: #fff;
+    width: 100%; margin-top: 8px; padding: 14px; background: var(--blue); color: #fff;
     border: 0; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;
   }
   button:hover { background: var(--blue-dark); }
   button:disabled { background: #94a9d6; cursor: wait; }
-  button.link { background: none; color: var(--blue); font-size: 13px; font-weight: 500; margin-top: 10px; padding: 6px; }
+  button.link { background: none; color: var(--blue); font-size: 13px; font-weight: 500; padding: 8px; }
   button.link:hover { background: none; text-decoration: underline; }
-  .topbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 14px; }
   .topbar small { color: var(--muted); font-size: 13px; word-break: break-all; }
-  .topbar button { width: auto; margin: 0; padding: 7px 14px; font-size: 13px; background: #eef1f8; color: var(--text); }
+  .topbar button { width: auto; margin: 0; padding: 8px 14px; font-size: 13px; background: #eef1f8; color: var(--text); }
   .topbar button:hover { background: #e0e5f2; }
   .hidden { display: none !important; }
   .msg { margin-top: 16px; padding: 12px 14px; border-radius: 8px; font-size: 14px; display: none; line-height: 1.4; }
@@ -60,17 +61,21 @@
 <!-- ============ SCREEN 1: LOGIN ============ -->
 <div class="card" id="loginView">
   <h1>Employee Portal</h1>
-  <p class="sub">Enter your work email. We will send you a one-time code to sign in.</p>
+  <p class="sub">Enter your email and we will send you a 6-digit code to sign in.</p>
 
   <div id="emailStep">
-    <label for="email">Email address</label>
-    <input type="email" id="email" placeholder="you@company.com" autocomplete="email">
+    <div class="field">
+      <label for="email">Email address</label>
+      <input type="email" id="email" placeholder="you@company.com" autocomplete="email">
+    </div>
     <button type="button" id="sendBtn">Send Code</button>
   </div>
 
   <div id="codeStep" class="hidden">
-    <label for="otpCode">6-digit code</label>
-    <input type="text" id="otpCode" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code">
+    <div class="field">
+      <label for="otpCode">6-digit code</label>
+      <input type="text" id="otpCode" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code">
+    </div>
     <button type="button" id="verifyBtn">Verify &amp; Login</button>
     <button type="button" class="link" id="changeEmailBtn">Use a different email / resend code</button>
   </div>
@@ -79,13 +84,14 @@
   <div class="msg err" id="loginErr"></div>
 </div>
 
-<!-- ============ SCREEN 2: FORM (hidden until login) ============ -->
+<!-- ============ SCREEN 2: FORM (hidden until login succeeds) ============ -->
 <div class="card wide hidden" id="formView">
   <div class="topbar">
     <small>Signed in as <strong id="whoAmI"></strong></small>
     <button type="button" id="logoutBtn">Log out</button>
   </div>
   <h1>Employee Form</h1>
+  <p class="sub">Fill in all fields below and press Submit.</p>
 
   <form id="empForm" novalidate>
     <h2>Employee Information</h2>
@@ -107,7 +113,7 @@
       </div>
     </div>
 
-    <button type="submit" id="submitBtn">Submit</button>
+    <button type="submit" id="submitBtn">Submit Form</button>
   </form>
 
   <div class="msg ok" id="okMsg">✅ Submission Successful. Your form has been securely uploaded. Thank you!</div>
@@ -116,19 +122,14 @@
 
 <script>
 /* ============================================================
-   1) SETTINGS: EDIT ONLY THIS SECTION
+   1) SETTINGS (already filled in)
    ============================================================ */
 
 const SUPABASE_URL = 'https://dcbhmqxcpclrsabdqond.supabase.co/rest/v1/';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRjYmhtcXhjcGNscnNhYmRxb25kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1ODc2ODEsImV4cCI6MjEwOTE2MzY4MX0.hxttL0vHclPgD8SwRN2zdMImKiBMnHXcwULROeRJqg8';
-const BLANK_PDF_URL = './template.pdf';
 
-// Name of your private storage bucket
-const BUCKET_NAME = 'pdfs';
-
-// true  = any email can request a code and sign in
-// false = only people you already added under Authentication > Users
-const ALLOW_NEW_USERS = true;
+const BLANK_PDF_URL = './template.pdf';   // your blank PDF, in the same folder as this file
+const BUCKET_NAME   = 'pdfs';             // your private storage bucket
 
 // PDF field names for signature and date (must match your PDF exactly)
 const SIGNATURE_FIELD = 'Signature';
@@ -137,23 +138,28 @@ const DATE_FIELD = 'Date';
 // Form fields. "pdf" must match the PDF field name EXACTLY (spelling and capitals).
 // "label" is what the employee sees on the page.
 const MAIN_FIELDS = [
-  { pdf: 'Name',                  label: 'Employee Name', full: true },
-  { pdf: 'Adress',                label: 'Address',       full: true },
-  { pdf: 'City',                  label: 'City' },
-  { pdf: 'State',                 label: 'State' },
-  { pdf: 'Zip',                   label: 'Zip Code' },
-  { pdf: 'SSN',                   label: 'SSN', ssn: true },
-  { pdf: 'Country of Residence',  label: 'Country of Residence' },
+  { pdf: 'Name', label: 'Employee Name', full: true },
+  { pdf: 'Adress', label: 'Address', full: true },
+  { pdf: 'City', label: 'City' },
+  { pdf: 'State', label: 'State' },
+  { pdf: 'Zip', label: 'Zip Code' },
+  { pdf: 'SSN', label: 'SSN', ssn: true },
+  { pdf: 'Country of Residence', label: 'Country of Residence' },
   { pdf: 'Country of Employment', label: 'Country of Employment' }
 ];
 
 // PDF fields named 1 to 10. Rename the labels to match your form's questions.
 const NUMBERED_FIELDS = [
-  { pdf: '1',  label: 'Field 1'  }, { pdf: '2',  label: 'Field 2'  },
-  { pdf: '3',  label: 'Field 3'  }, { pdf: '4',  label: 'Field 4'  },
-  { pdf: '5',  label: 'Field 5'  }, { pdf: '6',  label: 'Field 6'  },
-  { pdf: '7',  label: 'Field 7'  }, { pdf: '8',  label: 'Field 8'  },
-  { pdf: '9',  label: 'Field 9'  }, { pdf: '10', label: 'Field 10' }
+  { pdf: '1', label: 'Field 1' },
+  { pdf: '2', label: 'Field 2' },
+  { pdf: '3', label: 'Field 3' },
+  { pdf: '4', label: 'Field 4' },
+  { pdf: '5', label: 'Field 5' },
+  { pdf: '6', label: 'Field 6' },
+  { pdf: '7', label: 'Field 7' },
+  { pdf: '8', label: 'Field 8' },
+  { pdf: '9', label: 'Field 9' },
+  { pdf: '10', label: 'Field 10' }
 ];
 
 /* ============================================================
@@ -161,18 +167,18 @@ const NUMBERED_FIELDS = [
    ============================================================ */
 
 const { PDFDocument } = PDFLib;
+const $ = (id) => document.getElementById(id);
+
+// The Supabase library needs the base URL, so "/rest/v1/" is removed automatically
 const SUPABASE_BASE = SUPABASE_URL.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '');
+
+// "supabase" is the library; "sb" is our connected client
 const sb = supabase.createClient(SUPABASE_BASE, SUPABASE_ANON_KEY);
 
-const $ = (id) => document.getElementById(id);
 let currentEmail = '';
 
 /* ---------- Small helpers ---------- */
-function show(id, text) {
-  const el = $(id);
-  if (text !== undefined) el.textContent = text;
-  el.style.display = 'block';
-}
+function show(id, text) { const el = $(id); if (text !== undefined) el.textContent = text; el.style.display = 'block'; }
 function hide(id) { $(id).style.display = 'none'; }
 function clearLoginMessages() { hide('loginInfo'); hide('loginErr'); }
 
@@ -183,8 +189,9 @@ function buildInputs(list, containerId, prefix) {
     const wrap = document.createElement('div');
     if (f.full) wrap.className = 'full';
     f.inputId = prefix + i;
-    wrap.innerHTML = `<label for="${f.inputId}">${f.label}</label>
-      <input type="text" id="${f.inputId}" ${f.ssn ? 'inputmode="numeric" autocomplete="off" placeholder="XXX-XX-XXXX"' : ''}>`;
+    wrap.innerHTML = '<label for="' + f.inputId + '">' + f.label + '</label>' +
+      '<input type="text" id="' + f.inputId + '"' +
+      (f.ssn ? ' inputmode="numeric" autocomplete="off" placeholder="XXX-XX-XXXX"' : '') + '>';
     box.appendChild(wrap);
   });
 }
@@ -209,41 +216,49 @@ function showLoginScreen() {
   clearLoginMessages();
 }
 
-/* ---------- LOGIN: send code ---------- */
+/* ---------- LOGIN: send the 6-digit code ---------- */
 $('sendBtn').addEventListener('click', async () => {
   clearLoginMessages();
-  const email = $('email').value.trim().toLowerCase();
-  if (!/^\S+@\S+\.\S+$/.test(email)) return show('loginErr', 'Please enter a valid email address.');
+  const emailInput = $('email').value.trim().toLowerCase();
+  if (!/^\S+@\S+\.\S+$/.test(emailInput)) return show('loginErr', 'Please enter a valid email address.');
 
   const btn = $('sendBtn');
   btn.disabled = true; btn.textContent = 'Sending...';
-  const { error } = await sb.auth.signInWithOtp({
-    email,
-    options: { shouldCreateUser: ALLOW_NEW_USERS }
-  });
-  btn.disabled = false; btn.textContent = 'Send Code';
 
+  const { error } = await sb.auth.signInWithOtp({
+    email: emailInput,
+    options: { shouldCreateUser: true }
+  });
+
+  btn.disabled = false; btn.textContent = 'Send Code';
   if (error) return show('loginErr', error.message);
 
-  currentEmail = email;
+  currentEmail = emailInput;
   $('emailStep').classList.add('hidden');
   $('codeStep').classList.remove('hidden');
-  show('loginInfo', 'A 6-digit code was sent to ' + email + '. Check your inbox (and spam folder).');
+  show('loginInfo', 'A 6-digit code was sent to ' + emailInput + '. Check your inbox (and spam folder).');
   $('otpCode').focus();
 });
 
-/* ---------- LOGIN: verify code ---------- */
+/* ---------- LOGIN: verify the code ---------- */
 async function verifyCode() {
   clearLoginMessages();
-  const token = $('otpCode').value.trim();
-  if (!/^\d{6}$/.test(token)) return show('loginErr', 'Please enter the 6-digit code.');
+  const emailInput = currentEmail;
+  const tokenInput = $('otpCode').value.trim();
+  if (!/^\d{6}$/.test(tokenInput)) return show('loginErr', 'Please enter the 6-digit code.');
 
   const btn = $('verifyBtn');
   btn.disabled = true; btn.textContent = 'Verifying...';
-  const { data, error } = await sb.auth.verifyOtp({ email: currentEmail, token, type: 'email' });
-  btn.disabled = false; btn.textContent = 'Verify & Login';
 
+  const { data, error } = await sb.auth.verifyOtp({
+    email: emailInput,
+    token: tokenInput,
+    type: 'email'
+  });
+
+  btn.disabled = false; btn.textContent = 'Verify & Login';
   if (error) return show('loginErr', 'Code not accepted: ' + error.message);
+
   showFormScreen(data.user.email);
 }
 $('verifyBtn').addEventListener('click', verifyCode);
@@ -263,7 +278,7 @@ $('logoutBtn').addEventListener('click', async () => {
   showLoginScreen();
 });
 
-/* ---------- Stay logged in after page refresh ---------- */
+/* ---------- Stay logged in after a page refresh ---------- */
 (async () => {
   const { data } = await sb.auth.getSession();
   if (data.session) showFormScreen(data.session.user.email);
@@ -304,8 +319,10 @@ async function placeSignature(pdfDoc, form, file) {
   const img = file.type === 'image/png' ? await pdfDoc.embedPng(bytes) : await pdfDoc.embedJpg(bytes);
   const field = form.getField(SIGNATURE_FIELD);
 
+  // If the signature field is a button-type field, the library can place the image directly
   if (field.constructor.name === 'PDFButton') { field.setImage(img); return; }
 
+  // Otherwise draw the image inside the field's rectangle
   const widget = field.acroField.getWidgets()[0];
   const rect = widget.getRectangle();
   const page = findPage(pdfDoc, widget);
@@ -316,15 +333,6 @@ async function placeSignature(pdfDoc, form, file) {
     y: rect.y + (rect.height - h) / 2,
     width: w, height: h
   });
-}
-
-/* ---------- Upload to the private bucket ---------- */
-async function uploadToSupabase(pdfBytes, fileName) {
-  const { data, error } = await sb.storage
-    .from(BUCKET_NAME)
-    .upload(fileName, pdfBytes, { contentType: 'application/pdf', upsert: false });
-  if (error) throw new Error('Upload failed: ' + error.message);
-  return data;
 }
 
 /* ---------- SUBMIT ---------- */
@@ -352,27 +360,31 @@ $('empForm').addEventListener('submit', async (ev) => {
 
   btn.disabled = true; btn.textContent = 'Submitting...';
   try {
-    // 1. Download the blank PDF
+    // 1. Download the blank PDF template
     const pdfRes = await fetch(BLANK_PDF_URL);
-    if (!pdfRes.ok) throw new Error('Could not download the blank PDF template.');
+    if (!pdfRes.ok) throw new Error('Could not download the blank PDF template (template.pdf).');
     const pdfDoc = await PDFDocument.load(await pdfRes.arrayBuffer());
     const form = pdfDoc.getForm();
 
-    // 2. Fill the fields
+    // 2. Fill all the text fields and the date
     const missing = [];
     all.forEach(f => fillField(form, f.pdf, $(f.inputId).value.trim(), missing));
     const [y, m, d] = dateVal.split('-');
-    fillField(form, DATE_FIELD, `${m}/${d}/${y}`, missing);
+    fillField(form, DATE_FIELD, m + '/' + d + '/' + y, missing);
 
-    // 3. Stamp the signature
+    // 3. Draw the signature image
     try { await placeSignature(pdfDoc, form, sigFile); } catch (e) { missing.push(SIGNATURE_FIELD); }
     if (missing.length) console.warn('These PDF fields were not found or failed:', missing);
 
-    // 4. Save and upload as submission_email_timestamp.pdf
+    // 4. Save and upload to the private bucket as submission_email_timestamp.pdf
     const pdfBytes = await pdfDoc.save();
     const safeEmail = email.replace(/[^a-zA-Z0-9]+/g, '_');
-    const fileName = `submission_${safeEmail}_${Date.now()}.pdf`;
-    await uploadToSupabase(pdfBytes, fileName);
+    const fileName = 'submission_' + safeEmail + '_' + Date.now() + '.pdf';
+
+    const { error } = await sb.storage
+      .from(BUCKET_NAME)
+      .upload(fileName, pdfBytes, { contentType: 'application/pdf', upsert: false });
+    if (error) throw new Error('Upload failed: ' + error.message);
 
     // 5. Success
     $('empForm').reset();
@@ -383,7 +395,7 @@ $('empForm').addEventListener('submit', async (ev) => {
     console.error(err);
     showErr(err.message || 'Something went wrong. Please try again.');
   } finally {
-    btn.disabled = false; btn.textContent = 'Submit';
+    btn.disabled = false; btn.textContent = 'Submit Form';
   }
 });
 </script>
