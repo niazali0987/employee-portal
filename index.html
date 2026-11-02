@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Employee Portal</title>
+<script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+  :root {
+    --blue:#2457c5; --blue-dark:#1b44a0; --bg1:#eef2fb; --bg2:#dfe8fa;
+    --border:#d3dbea; --text:#1b2336; --muted:#6a7389;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    color: var(--text); margin: 0; padding: 32px 14px; min-height: 100vh;
+    background: linear-gradient(135deg, var(--bg1), var(--bg2));
+  }
+  .card {
+    max-width: 440px; margin: 40px auto; background: #fff; border-radius: 16px;
+    padding: 32px; box-shadow: 0 10px 30px rgba(30,50,100,.12);
+  }
+  .card.wide { max-width: 760px; margin-top: 0; }
+  h1 { margin: 0 0 6px; font-size: 24px; }
+  h2 { font-size: 16px; margin: 28px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+  p.sub { margin: 0 0 22px; color: var(--muted); font-size: 14px; line-height: 1.5; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .full { grid-column: 1 / -1; }
+  label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+  input {
+    width: 100%; padding: 11px 12px; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 15px; background: #fbfcff;
+  }
+  input:focus { outline: 2px solid var(--blue); border-color: var(--blue); background: #fff; }
+  #otpCode { letter-spacing: 8px; font-size: 22px; text-align: center; }
+  button {
+    width: 100%; margin-top: 16px; padding: 13px; background: var(--blue); color: #fff;
+    border: 0; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;
+  }
+  button:hover { background: var(--blue-dark); }
+  button:disabled { background: #94a9d6; cursor: wait; }
+  button.link { background: none; color: var(--blue); font-size: 13px; font-weight: 500; margin-top: 10px; padding: 6px; }
+  button.link:hover { background: none; text-decoration: underline; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .topbar small { color: var(--muted); font-size: 13px; word-break: break-all; }
+  .topbar button { width: auto; margin: 0; padding: 7px 14px; font-size: 13px; background: #eef1f8; color: var(--text); }
+  .topbar button:hover { background: #e0e5f2; }
+  .hidden { display: none !important; }
+  .msg { margin-top: 16px; padding: 12px 14px; border-radius: 8px; font-size: 14px; display: none; line-height: 1.4; }
+  .ok { background: #e3f6e8; color: #17692f; border: 1px solid #a3d9b3; }
+  .err { background: #fde8e8; color: #9b1c1c; border: 1px solid #f1b0b0; }
+  .info { background: #e8f0fe; color: #1b3f8f; border: 1px solid #b4c9f5; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } .card { padding: 24px 18px; } }
+</style>
+</head>
+<body>
+
+<!-- ============ SCREEN 1: LOGIN ============ -->
+<div class="card" id="loginView">
+  <h1>Employee Portal</h1>
+  <p class="sub">Enter your work email. We will send you a one-time code to sign in.</p>
+
+  <div id="emailStep">
+    <label for="email">Email address</label>
+    <input type="email" id="email" placeholder="you@company.com" autocomplete="email">
+    <button type="button" id="sendBtn">Send Code</button>
+  </div>
+
+  <div id="codeStep" class="hidden">
+    <label for="otpCode">6-digit code</label>
+    <input type="text" id="otpCode" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code">
+    <button type="button" id="verifyBtn">Verify &amp; Login</button>
+    <button type="button" class="link" id="changeEmailBtn">Use a different email / resend code</button>
+  </div>
+
+  <div class="msg info" id="loginInfo"></div>
+  <div class="msg err" id="loginErr"></div>
+</div>
+
+<!-- ============ SCREEN 2: FORM (hidden until login) ============ -->
+<div class="card wide hidden" id="formView">
+  <div class="topbar">
+    <small>Signed in as <strong id="whoAmI"></strong></small>
+    <button type="button" id="logoutBtn">Log out</button>
+  </div>
+  <h1>Employee Form</h1>
+
+  <form id="empForm" novalidate>
+    <h2>Employee Information</h2>
+    <div class="grid" id="mainFields"></div>
+
+    <h2>Additional Fields</h2>
+    <div class="grid" id="numberedFields"></div>
+
+    <h2>Signature &amp; Date</h2>
+    <div class="grid">
+      <div class="full">
+        <label for="signature">Employee Signature Image (PNG or JPG)</label>
+        <input type="file" id="signature" accept="image/png,image/jpeg">
+        <div class="hint">Upload a photo or scan of your signature on a white or transparent background.</div>
+      </div>
+      <div>
+        <label for="date">Date</label>
+        <input type="date" id="date">
+      </div>
+    </div>
+
+    <button type="submit" id="submitBtn">Submit</button>
+  </form>
+
+  <div class="msg ok" id="okMsg">✅ Submission Successful. Your form has been securely uploaded. Thank you!</div>
+  <div class="msg err" id="errMsg"></div>
+</div>
+
+<script>
+/* ============================================================
+   1) SETTINGS: EDIT ONLY THIS SECTION
+   ============================================================ */
+
+const SUPABASE_URL = 'https://dcbhmqxcpclrsabdqond.supabase.co/rest/v1/';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRjYmhtcXhjcGNscnNhYmRxb25kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1ODc2ODEsImV4cCI6MjEwOTE2MzY4MX0.hxttL0vHclPgD8SwRN2zdMImKiBMnHXcwULROeRJqg8';
+const BLANK_PDF_URL = './template.pdf';
+
+// Name of your private storage bucket
+const BUCKET_NAME = 'pdfs';
+
+// true  = any email can request a code and sign in
+// false = only people you already added under Authentication > Users
+const ALLOW_NEW_USERS = true;
+
+// PDF field names for signature and date (must match your PDF exactly)
+const SIGNATURE_FIELD = 'Signature';
+const DATE_FIELD = 'Date';
+
+// Form fields. "pdf" must match the PDF field name EXACTLY (spelling and capitals).
+// "label" is what the employee sees on the page.
+const MAIN_FIELDS = [
+  { pdf: 'Name',                  label: 'Employee Name', full: true },
+  { pdf: 'Adress',                label: 'Address',       full: true },
+  { pdf: 'City',                  label: 'City' },
+  { pdf: 'State',                 label: 'State' },
+  { pdf: 'Zip',                   label: 'Zip Code' },
+  { pdf: 'SSN',                   label: 'SSN', ssn: true },
+  { pdf: 'Country of Residence',  label: 'Country of Residence' },
+  { pdf: 'Country of Employment', label: 'Country of Employment' }
+];
+
+// PDF fields named 1 to 10. Rename the labels to match your form's questions.
+const NUMBERED_FIELDS = [
+  { pdf: '1',  label: 'Field 1'  }, { pdf: '2',  label: 'Field 2'  },
+  { pdf: '3',  label: 'Field 3'  }, { pdf: '4',  label: 'Field 4'  },
+  { pdf: '5',  label: 'Field 5'  }, { pdf: '6',  label: 'Field 6'  },
+  { pdf: '7',  label: 'Field 7'  }, { pdf: '8',  label: 'Field 8'  },
+  { pdf: '9',  label: 'Field 9'  }, { pdf: '10', label: 'Field 10' }
+];
+
+/* ============================================================
+   2) CODE: NO NEED TO EDIT BELOW THIS LINE
+   ============================================================ */
+
+const { PDFDocument } = PDFLib;
+const SUPABASE_BASE = SUPABASE_URL.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '');
+const sb = supabase.createClient(SUPABASE_BASE, SUPABASE_ANON_KEY);
+
+const $ = (id) => document.getElementById(id);
+let currentEmail = '';
+
+/* ---------- Small helpers ---------- */
+function show(id, text) {
+  const el = $(id);
+  if (text !== undefined) el.textContent = text;
+  el.style.display = 'block';
+}
+function hide(id) { $(id).style.display = 'none'; }
+function clearLoginMessages() { hide('loginInfo'); hide('loginErr'); }
+
+/* ---------- Build the form inputs ---------- */
+function buildInputs(list, containerId, prefix) {
+  const box = $(containerId);
+  list.forEach((f, i) => {
+    const wrap = document.createElement('div');
+    if (f.full) wrap.className = 'full';
+    f.inputId = prefix + i;
+    wrap.innerHTML = `<label for="${f.inputId}">${f.label}</label>
+      <input type="text" id="${f.inputId}" ${f.ssn ? 'inputmode="numeric" autocomplete="off" placeholder="XXX-XX-XXXX"' : ''}>`;
+    box.appendChild(wrap);
+  });
+}
+buildInputs(MAIN_FIELDS, 'mainFields', 'm');
+buildInputs(NUMBERED_FIELDS, 'numberedFields', 'n');
+$('date').valueAsDate = new Date();
+
+/* ---------- Switch screens ---------- */
+function showFormScreen(email) {
+  currentEmail = email;
+  $('whoAmI').textContent = email;
+  $('loginView').classList.add('hidden');
+  $('formView').classList.remove('hidden');
+}
+function showLoginScreen() {
+  currentEmail = '';
+  $('formView').classList.add('hidden');
+  $('loginView').classList.remove('hidden');
+  $('codeStep').classList.add('hidden');
+  $('emailStep').classList.remove('hidden');
+  $('otpCode').value = '';
+  clearLoginMessages();
+}
+
+/* ---------- LOGIN: send code ---------- */
+$('sendBtn').addEventListener('click', async () => {
+  clearLoginMessages();
+  const email = $('email').value.trim().toLowerCase();
+  if (!/^\S+@\S+\.\S+$/.test(email)) return show('loginErr', 'Please enter a valid email address.');
+
+  const btn = $('sendBtn');
+  btn.disabled = true; btn.textContent = 'Sending...';
+  const { error } = await sb.auth.signInWithOtp({
+    email,
+    options: { shouldCreateUser: ALLOW_NEW_USERS }
+  });
+  btn.disabled = false; btn.textContent = 'Send Code';
+
+  if (error) return show('loginErr', error.message);
+
+  currentEmail = email;
+  $('emailStep').classList.add('hidden');
+  $('codeStep').classList.remove('hidden');
+  show('loginInfo', 'A 6-digit code was sent to ' + email + '. Check your inbox (and spam folder).');
+  $('otpCode').focus();
+});
+
+/* ---------- LOGIN: verify code ---------- */
+async function verifyCode() {
+  clearLoginMessages();
+  const token = $('otpCode').value.trim();
+  if (!/^\d{6}$/.test(token)) return show('loginErr', 'Please enter the 6-digit code.');
+
+  const btn = $('verifyBtn');
+  btn.disabled = true; btn.textContent = 'Verifying...';
+  const { data, error } = await sb.auth.verifyOtp({ email: currentEmail, token, type: 'email' });
+  btn.disabled = false; btn.textContent = 'Verify & Login';
+
+  if (error) return show('loginErr', 'Code not accepted: ' + error.message);
+  showFormScreen(data.user.email);
+}
+$('verifyBtn').addEventListener('click', verifyCode);
+$('otpCode').addEventListener('keydown', (e) => { if (e.key === 'Enter') verifyCode(); });
+$('email').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('sendBtn').click(); });
+
+$('changeEmailBtn').addEventListener('click', () => {
+  $('codeStep').classList.add('hidden');
+  $('emailStep').classList.remove('hidden');
+  $('otpCode').value = '';
+  clearLoginMessages();
+});
+
+/* ---------- Log out ---------- */
+$('logoutBtn').addEventListener('click', async () => {
+  await sb.auth.signOut();
+  showLoginScreen();
+});
+
+/* ---------- Stay logged in after page refresh ---------- */
+(async () => {
+  const { data } = await sb.auth.getSession();
+  if (data.session) showFormScreen(data.session.user.email);
+})();
+sb.auth.onAuthStateChange((event) => {
+  if (event === 'SIGNED_OUT') showLoginScreen();
+});
+
+/* ---------- PDF helpers ---------- */
+function fillField(form, name, value, missing) {
+  let field;
+  try { field = form.getField(name); } catch (e) { missing.push(name); return; }
+  const type = field.constructor.name;
+  if (type === 'PDFCheckBox') {
+    const v = String(value).trim().toLowerCase();
+    if (v && !['no', 'n', 'false', '0', 'off'].includes(v)) field.check(); else field.uncheck();
+  } else if (type === 'PDFTextField') {
+    field.setText(String(value));
+  } else if (type === 'PDFDropdown' || type === 'PDFOptionList' || type === 'PDFRadioGroup') {
+    try { field.select(String(value)); } catch (e) { /* value not in list */ }
+  }
+}
+
+function findPage(pdfDoc, widget) {
+  const target = pdfDoc.context.getObjectRef(widget.dict);
+  for (const page of pdfDoc.getPages()) {
+    const annots = page.node.Annots();
+    if (!annots) continue;
+    for (let i = 0; i < annots.size(); i++) {
+      if (target && annots.get(i).toString() === target.toString()) return page;
+    }
+  }
+  return pdfDoc.getPages()[0];
+}
+
+async function placeSignature(pdfDoc, form, file) {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const img = file.type === 'image/png' ? await pdfDoc.embedPng(bytes) : await pdfDoc.embedJpg(bytes);
+  const field = form.getField(SIGNATURE_FIELD);
+
+  if (field.constructor.name === 'PDFButton') { field.setImage(img); return; }
+
+  const widget = field.acroField.getWidgets()[0];
+  const rect = widget.getRectangle();
+  const page = findPage(pdfDoc, widget);
+  const scale = Math.min(rect.width / img.width, rect.height / img.height);
+  const w = img.width * scale, h = img.height * scale;
+  page.drawImage(img, {
+    x: rect.x + (rect.width - w) / 2,
+    y: rect.y + (rect.height - h) / 2,
+    width: w, height: h
+  });
+}
+
+/* ---------- Upload to the private bucket ---------- */
+async function uploadToSupabase(pdfBytes, fileName) {
+  const { data, error } = await sb.storage
+    .from(BUCKET_NAME)
+    .upload(fileName, pdfBytes, { contentType: 'application/pdf', upsert: false });
+  if (error) throw new Error('Upload failed: ' + error.message);
+  return data;
+}
+
+/* ---------- SUBMIT ---------- */
+$('empForm').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  hide('okMsg'); hide('errMsg');
+  const showErr = (t) => show('errMsg', '⚠️ ' + t);
+
+  const btn = $('submitBtn');
+  const sigFile = $('signature').files[0];
+  const dateVal = $('date').value;
+  const all = [...MAIN_FIELDS, ...NUMBERED_FIELDS];
+
+  for (const f of all) {
+    if (!$(f.inputId).value.trim()) return showErr('Please fill in: ' + f.label);
+  }
+  if (!dateVal) return showErr('Please choose a date.');
+  if (!sigFile) return showErr('Please upload your signature image.');
+  if (!['image/png', 'image/jpeg'].includes(sigFile.type)) return showErr('Signature must be a PNG or JPG image.');
+
+  // Make sure the employee is still logged in
+  const { data: sess } = await sb.auth.getSession();
+  if (!sess.session) { showLoginScreen(); return; }
+  const email = sess.session.user.email;
+
+  btn.disabled = true; btn.textContent = 'Submitting...';
+  try {
+    // 1. Download the blank PDF
+    const pdfRes = await fetch(BLANK_PDF_URL);
+    if (!pdfRes.ok) throw new Error('Could not download the blank PDF template.');
+    const pdfDoc = await PDFDocument.load(await pdfRes.arrayBuffer());
+    const form = pdfDoc.getForm();
+
+    // 2. Fill the fields
+    const missing = [];
+    all.forEach(f => fillField(form, f.pdf, $(f.inputId).value.trim(), missing));
+    const [y, m, d] = dateVal.split('-');
+    fillField(form, DATE_FIELD, `${m}/${d}/${y}`, missing);
+
+    // 3. Stamp the signature
+    try { await placeSignature(pdfDoc, form, sigFile); } catch (e) { missing.push(SIGNATURE_FIELD); }
+    if (missing.length) console.warn('These PDF fields were not found or failed:', missing);
+
+    // 4. Save and upload as submission_email_timestamp.pdf
+    const pdfBytes = await pdfDoc.save();
+    const safeEmail = email.replace(/[^a-zA-Z0-9]+/g, '_');
+    const fileName = `submission_${safeEmail}_${Date.now()}.pdf`;
+    await uploadToSupabase(pdfBytes, fileName);
+
+    // 5. Success
+    $('empForm').reset();
+    $('date').valueAsDate = new Date();
+    show('okMsg');
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+  } catch (err) {
+    console.error(err);
+    showErr(err.message || 'Something went wrong. Please try again.');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Submit';
+  }
+});
+</script>
+</body>
+</html>
